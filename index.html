@@ -696,22 +696,24 @@ function openAI(q){let el=$('ai');if(!el){el=document.createElement('div');el.id
  el.innerHTML=`<div class="aih"><img src="${IMGS_LOGO()}" alt=""><div class="grow"><b>Trợ lý TVwin</b><small>Tìm SP · tư vấn KM · chào hàng · nhập liệu bằng lời/ảnh</small></div><button class="btn gr s" onclick="if(confirm('Xóa lịch sử chat?')){AIH=[];aiSave();aiRender()}">🗑️</button><button class="btn gr s" onclick="$('ai').remove()">✕</button></div>
  <div class="aim" id="aim"></div><div id="aifiles" class="aifl"></div>
  <div class="aiin"><div class="chips" id="aichips"></div><div class="row" style="flex-wrap:nowrap;gap:6px">
- <label class="aib" title="Chụp ảnh">📷<input type="file" accept="image/*" capture="environment" hidden onchange="aiAddFiles(this.files);this.value=''"></label>
- <label class="aib" title="Chọn ảnh/PDF/CSV">📎<input type="file" accept="image/*,application/pdf,.csv,.txt,.json" multiple hidden onchange="aiAddFiles(this.files);this.value=''"></label>
+ <label class="aib" title="Chụp ảnh">📷<input id="aicam" type="file" accept="image/*" capture="environment" hidden onchange="aiPick(this,'Nhận diện sản phẩm trong ảnh: mã, giá bán, KM, tồn kho và cách chào')"></label>
+ <label class="aib" title="Chọn ảnh/PDF/CSV">📎<input id="aifile" type="file" accept="image/*,application/pdf,.csv,.txt,.json" multiple hidden onchange="aiPick(this,'Đọc file/ảnh này: nếu là đơn đặt hàng thì lập đơn bán, nếu là phiếu nhập NPP thì lập phiếu nhập, nếu là sản phẩm thì báo giá')"></label>
  <textarea id="aiq" rows="1" placeholder="Hỏi hoặc ra lệnh… VD: Tạp hóa Lan lấy 2 thùng lau sàn sả chanh" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();aiSend()}"></textarea>
  <button class="aib" id="aimic" onclick="aiVoice()" title="Nói">🎤</button><button class="btn" onclick="aiSend()">➤</button></div></div>`;
  aiRender();aiChipsRender();if(q){$('aiq').value=q;aiSend()}}
-const AI_CHIPS=['Tìm nước rửa bát can lớn','Quán ăn nên chào mã nào?','Mua 2 thùng lau sàn tặng gì vẫn lãi?','Hôm nay nên ghé cửa hàng nào?','Tiến độ chỉ tiêu & thưởng','Cách chào Solhome mới cho tạp hóa'];
-function aiChipsRender(extra){const c=$('aichips');if(!c)return;c.innerHTML=(extra&&extra.length?extra:AI_CHIPS).map(t=>`<button onclick="$('aiq').value=this.textContent;aiSend()">${esc(t)}</button>`).join('')}
+const AI_CHIPS=['📷 Chụp sản phẩm tra giá','📎 Tải ảnh/file đơn hàng','Tìm nước rửa bát can lớn','Quán ăn nên chào mã nào?','Mua 2 thùng lau sàn tặng gì vẫn lãi?','Hôm nay nên ghé cửa hàng nào?','Tiến độ chỉ tiêu & thưởng','Cách chào Solhome mới cho tạp hóa'];
+function aiChipsRender(extra){const c=$('aichips');if(!c)return;c.innerHTML=(extra&&extra.length?extra:AI_CHIPS).map(t=>`<button onclick="aiChip(this.textContent)">${esc(t)}</button>`).join('')}
 function md(t){return esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/^\s*[-•]\s+/gm,'• ').replace(/\n/g,'<br>')}
 function aiRender(){const m=$('aim');if(!m)return;
- m.innerHTML=(AIH.length?'':`<div class="aiw"><img src="${IMGS_LOGO()}" alt=""><p><b>Chào anh${S.settings.seller?' '+esc(S.settings.seller):''}!</b> Em là trợ lý bán hàng TVwin. Anh có thể:</p><p>• Hỏi sản phẩm bằng lời thường: “nước rửa bát to”, “giặt thơm kiểu Nhật”<br>• Hỏi cách KM: “khách lấy 3 thùng giặt xả tặng gì?”<br>• Ra lệnh: “Tạp hóa Lan lấy 2 thùng lau sàn sả chanh, trả 500k”<br>• Chụp phiếu nhập NPP → em tự lập phiếu nhập kho<br>• Bấm 🎤 để nói thay vì gõ</p></div>`)+
+ m.innerHTML=(AIH.length?'':`<div class="aiw"><img src="${IMGS_LOGO()}" alt=""><p><b>Chào anh${S.settings.seller?' '+esc(S.settings.seller):''}!</b> Em là trợ lý bán hàng TVwin. Anh có thể:</p><p>• Hỏi sản phẩm bằng lời thường: “nước rửa bát to”, “giặt thơm kiểu Nhật”<br>• Hỏi cách KM: “khách lấy 3 thùng giặt xả tặng gì?”<br>• Ra lệnh: “Tạp hóa Lan lấy 2 thùng lau sàn sả chanh, trả 500k”<br>• Chụp phiếu nhập NPP → em tự lập phiếu nhập kho<br>• Bấm 📷 chụp chai/can/túi bất kỳ → em nhận diện và báo giá, KM<br>• Tải ảnh tin nhắn đặt hàng/phiếu nhập → em tự lập đơn, phiếu nhập<br>• Bấm 🎤 để nói thay vì gõ</p></div>`)+
  AIH.map((x,i)=>x.role==='user'?`<div class="bu">${esc(x.content)}${x.files?`<div class="mut">📎 ${esc(x.files)}</div>`:''}</div>`:`<div class="ba">${md(x.content)}${(x.actions||[]).map((a,j)=>actCard(a,i,j)).join('')}${(x.warnings||[]).length?`<div class="aiwarn">⚠️ ${x.warnings.map(esc).join('<br>⚠️ ')}</div>`:''}</div>`).join('')+
  (AIBUSY?'<div class="ba"><span class="dots">Đang suy nghĩ</span></div>':'');m.scrollTop=m.scrollHeight}
 async function aiAddFiles(fl){for(const f of fl){if(f.size>15e6){toast('File quá lớn');continue}
  if(/^image\//.test(f.type)){AIF.push({name:f.name,mime:'image/jpeg',data:await imgB64(f)})}
  else if(f.type==='application/pdf'){AIF.push({name:f.name,mime:f.type,data:await fileB64(f)})}
  else AIF.push({name:f.name,mime:'text/plain',text:await f.text()})}aiFilesRender()}
+function aiChip(t){if(t.startsWith('📷'))return $('aicam').click();if(t.startsWith('📎'))return $('aifile').click();$('aiq').value=t;aiSend()}
+function aiPick(inp,q){const f=[...inp.files];inp.value='';aiAddFiles(f).then(()=>{if(!$('aiq').value.trim())$('aiq').value=q;aiSend()})}
 function aiFilesRender(){$('aifiles').innerHTML=AIF.map((f,i)=>`<span class="tag b">📎 ${esc(f.name)} <a href="#" onclick="event.preventDefault();AIF.splice(${i},1);aiFilesRender()">✕</a></span>`).join('')}
 function fileB64(f){return new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result.split(',')[1]);fr.readAsDataURL(f)})}
 function imgB64(f){return new Promise(r=>{const img=new Image();img.onload=()=>{const k=Math.min(1,1600/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=img.width*k;c.height=img.height*k;c.getContext('2d').drawImage(img,0,0,c.width,c.height);r(c.toDataURL('image/jpeg',.82).split(',')[1])};img.onerror=()=>fileB64(f).then(r);img.src=URL.createObjectURL(f)})}
